@@ -1,0 +1,10 @@
+{
+  "id": "anky",
+  "name": "Anky",
+  "version": "1.0.0",
+  "minAppVersion": "1.0.0",
+  "description": "8-minute forward-only writing. your words, preserved forever.",
+  "author": "Jorge Pablo Franetovic Stocker",
+  "authorUrl": "https://anky.app",
+  "isDesktopOnly": false
+}
