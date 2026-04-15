@@ -1,7 +1,9 @@
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __reflectGet = Reflect.get;
 var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
@@ -15,6 +17,7 @@ var __copyProps = (to, from, except, desc) => {
   return to;
 };
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+var __superGet = (cls, obj, key) => __reflectGet(__getProtoOf(cls), key, obj);
 var __async = (__this, __arguments, generator) => {
   return new Promise((resolve, reject) => {
     var fulfilled = (value) => {
@@ -83,6 +86,50 @@ function formatDuration(ms) {
   const seconds = totalSeconds % 60;
   return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
+var AnkyConfirmModal = class extends import_obsidian.Modal {
+  constructor(app, message) {
+    super(app);
+    this.resolved = false;
+    this.resolvePromise = null;
+    this.message = message;
+  }
+  onOpen() {
+    const { contentEl, modalEl } = this;
+    modalEl.addClass("anky-confirm-modal");
+    contentEl.addClass("anky-confirm-content");
+    contentEl.empty();
+    const msg = contentEl.createDiv({ cls: "anky-confirm-message" });
+    msg.textContent = this.message;
+    const buttons = contentEl.createDiv({ cls: "anky-confirm-buttons" });
+    const cancelBtn = buttons.createEl("button", { cls: "anky-btn-cancel" });
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.addEventListener("click", () => {
+      this.resolved = true;
+      if (this.resolvePromise)
+        this.resolvePromise(false);
+      this.close();
+    });
+    const confirmBtn = buttons.createEl("button", { cls: "anky-btn-danger" });
+    confirmBtn.textContent = "Delete";
+    confirmBtn.addEventListener("click", () => {
+      this.resolved = true;
+      if (this.resolvePromise)
+        this.resolvePromise(true);
+      this.close();
+    });
+  }
+  onClose() {
+    if (!this.resolved && this.resolvePromise) {
+      this.resolvePromise(false);
+    }
+    this.contentEl.empty();
+  }
+  waitForResult() {
+    return new Promise((resolve) => {
+      this.resolvePromise = resolve;
+    });
+  }
+};
 var AnkyWritingModal = class extends import_obsidian.Modal {
   constructor(app, plugin) {
     super(app);
@@ -90,7 +137,6 @@ var AnkyWritingModal = class extends import_obsidian.Modal {
     this.firstKeystrokeEpochMs = 0;
     this.lastKeystrokeTime = 0;
     this.idleTimer = null;
-    this.idleShowTimer = null;
     this.sessionActive = false;
     this.writingArea = null;
     this.placeholderEl = null;
@@ -104,81 +150,32 @@ var AnkyWritingModal = class extends import_obsidian.Modal {
   }
   onOpen() {
     const { contentEl, modalEl, containerEl } = this;
-    modalEl.style.cssText = `
-			position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-			max-width: 100vw; max-height: 100vh; margin: 0; padding: 0;
-			border: none; border-radius: 0; background: #06040f;
-			display: flex; flex-direction: column; z-index: 9999;
-		`;
-    containerEl.style.cssText = `
-			position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-			background: rgba(0,0,0,0.95); z-index: 9998;
-		`;
+    modalEl.addClass("anky-writing-modal");
+    containerEl.addClass("anky-writing-container");
     const closeButton = modalEl.querySelector(".modal-close-button");
     if (closeButton)
-      closeButton.style.display = "none";
-    contentEl.style.cssText = `
-			display: flex; flex-direction: column; flex: 1;
-			padding: 0; margin: 0; overflow: hidden;
-		`;
+      closeButton.addClass("anky-close-button-hidden");
+    contentEl.addClass("anky-writing-content");
     contentEl.empty();
-    this.idleBarTrack = contentEl.createDiv();
-    this.idleBarTrack.style.cssText = `
-			width: 100%; height: 3px; background: #1a1030;
-			flex-shrink: 0; opacity: 0; transition: opacity 0.3s ease;
-			margin-top: 28px;
-		`;
-    this.idleBarFill = this.idleBarTrack.createDiv();
-    this.idleBarFill.style.cssText = `
-			width: 100%; height: 100%; background: #ea580c;
-			transition: width 0.1s linear;
-		`;
-    const writingWrapper = contentEl.createDiv();
-    writingWrapper.style.cssText = `
-			flex: 1; position: relative; overflow: hidden;
-		`;
-    this.placeholderEl = writingWrapper.createDiv();
-    this.placeholderEl.style.cssText = `
-			position: absolute; top: 24px; left: 32px; right: 32px;
-			font-family: Georgia, serif; font-size: 17px; line-height: 1.75;
-			color: rgba(255,255,255,0.25); pointer-events: none;
-			user-select: none;
-		`;
-    this.placeholderEl.textContent = "what is alive in you right now?";
-    this.writingArea = writingWrapper.createDiv();
+    this.idleBarTrack = contentEl.createDiv({ cls: "anky-idle-bar-track" });
+    this.idleBarFill = this.idleBarTrack.createDiv({ cls: "anky-idle-bar-fill" });
+    const writingWrapper = contentEl.createDiv({ cls: "anky-writing-wrapper" });
+    this.placeholderEl = writingWrapper.createDiv({ cls: "anky-placeholder" });
+    this.placeholderEl.textContent = "What is alive in you right now?";
+    this.writingArea = writingWrapper.createDiv({ cls: "anky-writing-area" });
     this.writingArea.setAttribute("contenteditable", "true");
-    this.writingArea.style.cssText = `
-			position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-			padding: 24px 32px; background: transparent;
-			font-family: Georgia, serif; font-size: 17px; line-height: 1.75;
-			color: #e8e2f8; caret-color: transparent; outline: none;
-			border: none; overflow-y: auto; white-space: pre-wrap;
-			word-wrap: break-word;
-		`;
-    const progressBarTrack = contentEl.createDiv();
-    progressBarTrack.style.cssText = `
-			width: 100%; height: 4px; background: #1a1030;
-			flex-shrink: 0;
-		`;
-    this.progressBarFill = progressBarTrack.createDiv();
-    this.progressBarFill.style.cssText = `
-			width: 0%; height: 100%;
-			background: linear-gradient(to right, #ef4444, #f97316, #eab308, #22c55e, #3b82f6, #6366f1, #8b5cf6, #ffffff);
-			transition: width 0.5s linear;
-		`;
-    this.timerEl = contentEl.createDiv();
-    this.timerEl.style.cssText = `
-			text-align: center; padding: 8px 16px 12px 16px;
-			font-size: 13px; color: rgba(255,255,255,0.3);
-			font-family: monospace; flex-shrink: 0;
-		`;
+    const progressBarTrack = contentEl.createDiv({ cls: "anky-progress-bar-track" });
+    this.progressBarFill = progressBarTrack.createDiv({ cls: "anky-progress-bar-fill" });
+    this.timerEl = contentEl.createDiv({ cls: "anky-timer" });
     this.timerEl.textContent = "8:00";
     setTimeout(() => {
       if (this.writingArea)
         this.writingArea.focus();
     }, 50);
     this.sessionActive = true;
-    this.keydownHandler = (e) => this.handleKeydown(e);
+    this.keydownHandler = (e) => {
+      this.handleKeydown(e);
+    };
     this.writingArea.addEventListener("keydown", this.keydownHandler);
     this.writingArea.addEventListener("paste", (e) => e.preventDefault());
     this.writingArea.addEventListener("drop", (e) => e.preventDefault());
@@ -197,10 +194,15 @@ var AnkyWritingModal = class extends import_obsidian.Modal {
       const sinceLast = now - this.lastKeystrokeTime;
       if (this.idleBarFill) {
         const remaining = Math.max(0, 1 - sinceLast / 8e3);
+        this.idleBarFill.setCssProps({ "--anky-idle-width": `${remaining * 100}%` });
         this.idleBarFill.style.width = `${remaining * 100}%`;
       }
       if (this.idleBarTrack) {
-        this.idleBarTrack.style.opacity = sinceLast >= 3e3 ? "1" : "0";
+        if (sinceLast >= 3e3) {
+          this.idleBarTrack.addClass("anky-idle-bar-track--visible");
+        } else {
+          this.idleBarTrack.removeClass("anky-idle-bar-track--visible");
+        }
       }
       if (this.progressBarFill) {
         const progress = Math.min(1, elapsed / 48e4);
@@ -265,7 +267,7 @@ var AnkyWritingModal = class extends import_obsidian.Modal {
       this.lastKeystrokeTime = now;
       this.keystrokeBuffer.push({ ms: now, char, first: true });
       if (this.placeholderEl) {
-        this.placeholderEl.style.display = "none";
+        this.placeholderEl.addClass("anky-placeholder--hidden");
       }
       this.startAnimationLoop();
     } else {
@@ -285,7 +287,7 @@ var AnkyWritingModal = class extends import_obsidian.Modal {
       this.idleTimer = null;
     }
     this.idleTimer = setTimeout(() => {
-      this.endSession();
+      void this.endSession();
     }, 8e3);
   }
   endSession() {
@@ -378,93 +380,36 @@ var AnkyCompletionModal = class extends import_obsidian.Modal {
   }
   onOpen() {
     const { contentEl, modalEl, containerEl } = this;
-    modalEl.style.cssText = `
-			position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-			max-width: 100vw; max-height: 100vh; margin: 0; padding: 0;
-			border: none; border-radius: 0; background: #06040f;
-			display: flex; flex-direction: column; align-items: center;
-			justify-content: center; z-index: 9999;
-		`;
-    containerEl.style.cssText = `
-			position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-			background: rgba(0,0,0,0.95); z-index: 9998;
-		`;
+    modalEl.addClass("anky-completion-modal");
+    containerEl.addClass("anky-writing-container");
     const closeButton = modalEl.querySelector(".modal-close-button");
     if (closeButton)
-      closeButton.style.display = "none";
-    contentEl.style.cssText = `
-			display: flex; flex-direction: column; align-items: center;
-			justify-content: center; flex: 1; text-align: center;
-			font-family: Georgia, serif; padding: 32px;
-		`;
+      closeButton.addClass("anky-close-button-hidden");
+    contentEl.addClass("anky-completion-content");
     contentEl.empty();
-    const label = contentEl.createDiv();
-    label.style.cssText = `
-			font-size: 14px; color: rgba(255,255,255,0.3);
-			letter-spacing: 0.15em; text-transform: uppercase;
-			margin-bottom: 32px;
-		`;
-    label.textContent = "session complete";
-    const wordsEl = contentEl.createDiv();
-    wordsEl.style.cssText = `
-			font-size: 48px; font-weight: 200; color: #fff;
-			margin-bottom: 8px;
-		`;
+    const label = contentEl.createDiv({ cls: "anky-completion-label" });
+    label.textContent = "Session complete";
+    const wordsEl = contentEl.createDiv({ cls: "anky-completion-word-count" });
     wordsEl.textContent = this.wordCount.toString();
-    const wordsLabel = contentEl.createDiv();
-    wordsLabel.style.cssText = `
-			font-size: 14px; color: rgba(255,255,255,0.4);
-			margin-bottom: 24px;
-		`;
-    wordsLabel.textContent = "words";
-    const durationEl = contentEl.createDiv();
-    durationEl.style.cssText = `
-			font-size: 24px; color: rgba(255,255,255,0.7);
-			margin-bottom: 8px;
-		`;
+    const wordsLabel = contentEl.createDiv({ cls: "anky-completion-words-label" });
+    wordsLabel.textContent = "Words";
+    const durationEl = contentEl.createDiv({ cls: "anky-completion-duration" });
     durationEl.textContent = formatDuration(this.durationMs);
-    const durationLabel = contentEl.createDiv();
-    durationLabel.style.cssText = `
-			font-size: 12px; color: rgba(255,255,255,0.3);
-			margin-bottom: 24px;
-		`;
-    durationLabel.textContent = "session duration";
-    const flowEl = contentEl.createDiv();
-    flowEl.style.cssText = `
-			font-size: 24px; color: #7c3aed;
-			margin-bottom: 8px;
-		`;
+    const durationLabel = contentEl.createDiv({ cls: "anky-completion-duration-label" });
+    durationLabel.textContent = "Session duration";
+    const flowEl = contentEl.createDiv({ cls: "anky-completion-flow" });
     flowEl.textContent = `${this.flowScore}%`;
-    const flowLabel = contentEl.createDiv();
-    flowLabel.style.cssText = `
-			font-size: 12px; color: rgba(255,255,255,0.3);
-			margin-bottom: 24px;
-		`;
-    flowLabel.textContent = "flow score";
-    const buttonsRow = contentEl.createDiv();
-    buttonsRow.style.cssText = `
-			display: flex; gap: 12px; align-items: center;
-			margin-top: 8px;
-		`;
-    const button = buttonsRow.createEl("button");
-    button.textContent = "open in vault \u2192";
-    button.style.cssText = `
-			background: #7c3aed; color: #fff; border: none;
-			padding: 12px 24px; font-size: 14px; font-family: Georgia, serif;
-			border-radius: 6px; cursor: pointer;
-		`;
-    button.addEventListener("click", () => __async(this, null, function* () {
+    const flowLabel = contentEl.createDiv({ cls: "anky-completion-flow-label" });
+    flowLabel.textContent = "Flow score";
+    const buttonsRow = contentEl.createDiv({ cls: "anky-completion-buttons" });
+    const button = buttonsRow.createEl("button", { cls: "anky-btn-primary" });
+    button.textContent = "Open in vault";
+    button.addEventListener("click", () => {
       this.close();
-      yield this.app.workspace.openLinkText(this.filePath, "", false);
-    }));
-    const infoBtn = buttonsRow.createEl("button");
+      void this.app.workspace.openLinkText(this.filePath, "", false);
+    });
+    const infoBtn = buttonsRow.createEl("button", { cls: "anky-btn-info" });
     infoBtn.textContent = "\u24D8";
-    infoBtn.style.cssText = `
-			background: transparent; color: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.15);
-			width: 36px; height: 36px; font-size: 18px;
-			border-radius: 50%; cursor: pointer;
-			display: flex; align-items: center; justify-content: center;
-		`;
     infoBtn.addEventListener("click", () => {
       new AnkyInfoModal(this.app).open();
     });
@@ -483,50 +428,27 @@ var ANKY_MAP_VIEW_TYPE = "anky-map-view";
 var AnkyInfoModal = class extends import_obsidian.Modal {
   onOpen() {
     const { contentEl, modalEl } = this;
-    modalEl.style.cssText = `
-			max-width: 420px; margin: auto; padding: 0;
-			border: 1px solid #2a2050; border-radius: 12px;
-			background: #0e0a1a;
-		`;
-    contentEl.style.cssText = `
-			padding: 32px; text-align: center;
-			font-family: Georgia, serif;
-		`;
+    modalEl.addClass("anky-info-modal");
+    contentEl.addClass("anky-info-content");
     contentEl.empty();
-    const title = contentEl.createDiv();
-    title.style.cssText = `
-			font-size: 20px; font-weight: 200; color: #e8e2f8;
-			margin-bottom: 16px;
-		`;
-    title.textContent = "anky";
-    const desc = contentEl.createDiv();
-    desc.style.cssText = `
-			font-size: 14px; line-height: 1.7; color: rgba(255,255,255,0.5);
-			margin-bottom: 24px;
-		`;
-    desc.textContent = "to unlock the full anky experience \u2014 reflections, insights, and more \u2014 get the mobile app.";
-    const buttonContainer = contentEl.createDiv();
-    buttonContainer.style.cssText = "display: flex; gap: 12px; flex-wrap: wrap;";
-    const buttonStyle = `
-			display: inline-block; color: #fff;
-			border: none; padding: 12px 24px; font-size: 14px;
-			font-family: Georgia, serif; border-radius: 6px;
-			cursor: pointer; text-decoration: none; letter-spacing: 0.03em;
-		`;
-    const copyBtn = buttonContainer.createEl("button");
-    copyBtn.textContent = "copy testflight link";
-    copyBtn.style.cssText = buttonStyle + "background: #7c3aed;";
+    const title = contentEl.createDiv({ cls: "anky-info-title" });
+    title.textContent = "Anky";
+    const desc = contentEl.createDiv({ cls: "anky-info-desc" });
+    desc.textContent = "To unlock the full Anky experience \u2014 reflections, insights, and more \u2014 get the mobile app.";
+    const buttonContainer = contentEl.createDiv({ cls: "anky-info-buttons" });
+    const copyBtn = buttonContainer.createEl("button", { cls: "anky-btn anky-btn--purple" });
+    copyBtn.textContent = "Copy TestFlight link";
     copyBtn.addEventListener("click", () => {
-      navigator.clipboard.writeText("https://testflight.apple.com/join/WcRYyCm5");
-      copyBtn.textContent = "copied!";
-      setTimeout(() => {
-        copyBtn.textContent = "copy testflight link";
-      }, 2e3);
+      void navigator.clipboard.writeText("https://testflight.apple.com/join/WcRYyCm5").then(() => {
+        copyBtn.textContent = "Copied!";
+        setTimeout(() => {
+          copyBtn.textContent = "Copy TestFlight link";
+        }, 2e3);
+      });
     });
-    const contactBtn = buttonContainer.createEl("a");
+    const contactBtn = buttonContainer.createEl("a", { cls: "anky-btn anky-btn--blue" });
     contactBtn.href = "https://x.com/jpfraneto";
-    contactBtn.textContent = "contact the dev \u2192";
-    contactBtn.style.cssText = buttonStyle + "background: #1d9bf0;";
+    contactBtn.textContent = "Contact the dev";
   }
   onClose() {
     this.contentEl.empty();
@@ -543,7 +465,7 @@ var AnkyFileView = class extends import_obsidian.FileView {
   }
   getDisplayText() {
     var _a;
-    return ((_a = this.file) == null ? void 0 : _a.basename.slice(0, 8)) + "..." || "anky";
+    return ((_a = this.file) == null ? void 0 : _a.basename.slice(0, 8)) + "..." || "Anky";
   }
   setPlugin(plugin) {
     this.plugin = plugin;
@@ -552,25 +474,25 @@ var AnkyFileView = class extends import_obsidian.FileView {
     return __async(this, null, function* () {
       const content = yield this.app.vault.read(file);
       this.renderSession(content, file.basename);
-      this.fileKeyHandler = (e) => this.handleFileKey(e);
+      this.fileKeyHandler = (e) => {
+        this.handleFileKey(e);
+      };
       this.contentEl.tabIndex = 0;
       this.contentEl.addEventListener("keydown", this.fileKeyHandler);
       this.contentEl.focus();
     });
   }
   handleFileKey(e) {
-    return __async(this, null, function* () {
-      if (e.key === "Backspace" || e.key === "Delete") {
-        e.preventDefault();
-        window.history.back();
-        return;
-      }
-      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-        e.preventDefault();
-        yield this.navigateSibling(e.key === "ArrowRight" ? 1 : -1);
-        return;
-      }
-    });
+    if (e.key === "Backspace" || e.key === "Delete") {
+      e.preventDefault();
+      window.history.back();
+      return;
+    }
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      e.preventDefault();
+      void this.navigateSibling(e.key === "ArrowRight" ? 1 : -1);
+      return;
+    }
   }
   navigateSibling(direction) {
     return __async(this, null, function* () {
@@ -604,8 +526,9 @@ var AnkyFileView = class extends import_obsidian.FileView {
       yield this.app.workspace.openLinkText(allFiles[nextIdx].path, "", false);
     });
   }
-  onUnloadFile() {
+  onUnloadFile(file) {
     return __async(this, null, function* () {
+      yield __superGet(AnkyFileView.prototype, this, "onUnloadFile").call(this, file);
       if (this.fileKeyHandler) {
         this.contentEl.removeEventListener("keydown", this.fileKeyHandler);
       }
@@ -614,11 +537,7 @@ var AnkyFileView = class extends import_obsidian.FileView {
   }
   renderSession(content, hash) {
     this.contentEl.empty();
-    this.contentEl.style.cssText = `
-			background: #06040f; color: #d4c8b8;
-			font-family: Georgia, serif;
-			height: 100%; overflow-y: auto;
-		`;
+    this.contentEl.addClass("anky-file-view");
     const lines = content.split("\n").filter((l) => l.trim());
     if (lines.length === 0)
       return;
@@ -649,83 +568,51 @@ var AnkyFileView = class extends import_obsidian.FileView {
         (rhythm * 0.3 + velocity * 0.25 + attention * 0.25 + dur * 0.2) * 100
       );
     }
-    const topBar = this.contentEl.createDiv();
-    topBar.style.cssText = `
-			display: flex; align-items: center; justify-content: space-between;
-			padding: 16px 32px; border-bottom: 1px solid #1a1030;
-		`;
-    const leftButtons = topBar.createDiv();
-    leftButtons.style.cssText = "display: flex; align-items: center; gap: 12px;";
-    const mapBtn = leftButtons.createEl("button");
-    mapBtn.textContent = "map";
-    mapBtn.style.cssText = `
-			background: transparent; color: #7c3aed; border: 1px solid #7c3aed;
-			padding: 4px 12px; font-size: 12px; font-family: Georgia, serif;
-			border-radius: 4px; cursor: pointer; letter-spacing: 0.08em;
-		`;
+    const topBar = this.contentEl.createDiv({ cls: "anky-file-top-bar" });
+    const leftButtons = topBar.createDiv({ cls: "anky-file-left-buttons" });
+    const mapBtn = leftButtons.createEl("button", { cls: "anky-btn-outline" });
+    mapBtn.textContent = "Map";
     mapBtn.addEventListener("click", () => {
-      this.openMapView();
+      void this.openMapView();
     });
-    const statsRow = leftButtons.createDiv();
-    statsRow.style.cssText = "display: flex; gap: 24px;";
-    const rightButtons = topBar.createDiv();
-    rightButtons.style.cssText = "display: flex; align-items: center; gap: 12px;";
-    const infoBtn = rightButtons.createEl("button");
+    const statsRow = leftButtons.createDiv({ cls: "anky-stats-row" });
+    const rightButtons = topBar.createDiv({ cls: "anky-file-right-buttons" });
+    const infoBtn = rightButtons.createEl("button", { cls: "anky-btn-info-small" });
     infoBtn.textContent = "\u24D8";
-    infoBtn.style.cssText = `
-			background: transparent; color: rgba(255,255,255,0.4); border: 1px solid rgba(255,255,255,0.15);
-			width: 28px; height: 28px; font-size: 16px;
-			border-radius: 50%; cursor: pointer;
-			display: flex; align-items: center; justify-content: center;
-		`;
     infoBtn.addEventListener("click", () => {
       new AnkyInfoModal(this.app).open();
     });
-    const deleteBtn = rightButtons.createEl("button");
-    deleteBtn.textContent = "delete session";
-    deleteBtn.style.cssText = `
-			background: transparent; color: #ef4444; border: 1px solid #ef4444;
-			padding: 4px 12px; font-size: 12px; font-family: Georgia, serif;
-			border-radius: 4px; cursor: pointer; letter-spacing: 0.08em;
-		`;
-    deleteBtn.addEventListener("click", () => __async(this, null, function* () {
+    const deleteBtn = rightButtons.createEl("button", { cls: "anky-btn-delete" });
+    deleteBtn.textContent = "Delete session";
+    deleteBtn.addEventListener("click", () => {
       const file = this.file;
       if (!file)
         return;
-      const confirmed = confirm("delete this session?");
-      if (!confirmed)
-        return;
-      yield this.app.vault.delete(file);
-      window.history.back();
-    }));
+      const modal = new AnkyConfirmModal(this.app, "Delete this session?");
+      modal.open();
+      void modal.waitForResult().then((confirmed) => __async(this, null, function* () {
+        if (!confirmed)
+          return;
+        yield this.app.fileManager.trashFile(file);
+        window.history.back();
+      }));
+    });
     const addStat = (value, label) => {
-      const s = statsRow.createDiv();
-      s.style.textAlign = "center";
-      const n = s.createDiv();
-      n.style.cssText = "font-size:22px;font-weight:200;color:#e8e2f8;letter-spacing:-0.5px;";
+      const s = statsRow.createDiv({ cls: "anky-stat" });
+      const n = s.createDiv({ cls: "anky-stat-value" });
       n.textContent = value;
-      const l = s.createDiv();
-      l.style.cssText = "font-size:9px;color:#444;letter-spacing:0.12em;text-transform:uppercase;margin-top:3px;";
+      const l = s.createDiv({ cls: "anky-stat-label" });
       l.textContent = label;
     };
     addStat(
       date.toLocaleDateString("en", { month: "short", day: "numeric" }),
-      "date"
+      "Date"
     );
-    addStat(duration, "duration");
-    addStat(String(words), "words");
-    addStat(flowScore + "%", "flow");
-    const textPanel = this.contentEl.createDiv();
-    textPanel.style.cssText = `
-			flex: 1; padding: 32px; overflow-y: auto;
-			max-width: 720px; margin: 0 auto;
-		`;
-    const body = textPanel.createDiv();
-    body.style.cssText = `
-			font-size: 16px; line-height: 1.85; color: #9d9488;
-			font-style: italic;
-			white-space: pre-wrap; word-wrap: break-word;
-		`;
+    addStat(duration, "Duration");
+    addStat(String(words), "Words");
+    addStat(flowScore + "%", "Flow");
+    const textPanel = this.contentEl.createDiv({ cls: "anky-text-panel" });
+    const body = textPanel.createDiv({ cls: "anky-text-body" });
     body.textContent = text;
   }
   openMapView() {
@@ -756,7 +643,7 @@ var AnkyMapView = class extends import_obsidian.ItemView {
     return ANKY_MAP_VIEW_TYPE;
   }
   getDisplayText() {
-    return "anky map";
+    return "Anky map";
   }
   getIcon() {
     return "map";
@@ -764,7 +651,9 @@ var AnkyMapView = class extends import_obsidian.ItemView {
   onOpen() {
     return __async(this, null, function* () {
       yield this.renderMap();
-      this.keyHandler = (e) => this.handleKey(e);
+      this.keyHandler = (e) => {
+        this.handleKey(e);
+      };
       this.contentEl.tabIndex = 0;
       this.contentEl.addEventListener("keydown", this.keyHandler);
       this.contentEl.focus();
@@ -790,7 +679,7 @@ var AnkyMapView = class extends import_obsidian.ItemView {
     if (e.key === " ") {
       e.preventDefault();
       if (this.selectedIndex >= 0 && this.selectedIndex < this.sessions.length) {
-        this.app.workspace.openLinkText(this.sessions[this.selectedIndex].path, "", false);
+        void this.app.workspace.openLinkText(this.sessions[this.selectedIndex].path, "", false);
       }
       return;
     }
@@ -817,15 +706,13 @@ var AnkyMapView = class extends import_obsidian.ItemView {
   selectCell(index) {
     if (this.selectedIndex >= 0 && this.selectedIndex < this.cells.length) {
       const old = this.cells[this.selectedIndex];
-      old.style.transform = "scale(1)";
-      old.style.zIndex = "0";
-      old.style.outline = "none";
+      old.removeClass("anky-map-cell--selected");
+      old.addClass("anky-map-cell--deselected");
     }
     this.selectedIndex = index;
     const cell = this.cells[index];
-    cell.style.transform = "scale(1.3)";
-    cell.style.zIndex = "10";
-    cell.style.outline = "2px solid #e8e2f8";
+    cell.removeClass("anky-map-cell--deselected");
+    cell.addClass("anky-map-cell--selected");
     cell.scrollIntoView({ block: "nearest" });
     this.updateInfo(this.sessions[index]);
     this.updatePreview(this.sessions[index]);
@@ -833,12 +720,16 @@ var AnkyMapView = class extends import_obsidian.ItemView {
   updateInfo(session) {
     if (!this.infoEl)
       return;
+    this.infoEl.empty();
     const durationMin = Math.floor(session.durationMs / 6e4);
     const durationSec = Math.floor(session.durationMs % 6e4 / 1e3);
     const dateStr = session.date.toLocaleDateString("en", { month: "short", day: "numeric", year: "numeric" });
     const dur = `${durationMin}:${durationSec.toString().padStart(2, "0")}`;
-    const ankyLabel = session.isAnky ? '<span style="color:#7c3aed;">anky</span>' : '<span style="color:#444;">session</span>';
-    this.infoEl.innerHTML = `${ankyLabel} &nbsp;&middot;&nbsp; ${dateStr} &nbsp;&middot;&nbsp; ${dur} &nbsp;&middot;&nbsp; ${session.words} words &nbsp;&nbsp; <span style="color:rgba(255,255,255,0.2);font-size:11px;">space to open</span>`;
+    const typeLabel = this.infoEl.createSpan({ cls: session.isAnky ? "anky-map-info-anky-label" : "anky-map-info-session-label" });
+    typeLabel.textContent = session.isAnky ? "Anky" : "Session";
+    this.infoEl.appendText(` \xB7 ${dateStr} \xB7 ${dur} \xB7 ${session.words} words  `);
+    const openHint = this.infoEl.createSpan({ cls: "anky-map-info-open-hint" });
+    openHint.textContent = "Space to open";
   }
   updatePreview(session) {
     if (!this.previewEl)
@@ -848,18 +739,16 @@ var AnkyMapView = class extends import_obsidian.ItemView {
     const durationMin = Math.floor(session.durationMs / 6e4);
     const durationSec = Math.floor(session.durationMs % 6e4 / 1e3);
     const dur = `${durationMin}:${durationSec.toString().padStart(2, "0")}`;
-    const header = this.previewEl.createDiv();
-    header.style.cssText = `
-			display: flex; gap: 16px; margin-bottom: 20px;
-			padding-bottom: 12px; border-bottom: 1px solid #1a1030;
-			font-size: 13px; color: rgba(255,255,255,0.4);
-		`;
-    header.innerHTML = `<span style="color:#e8e2f8;">${dateStr}</span> <span>${dur}</span> <span>${session.words} words</span> <span>${session.isAnky ? '<span style="color:#7c3aed;">anky</span>' : "session"}</span>`;
-    const textEl = this.previewEl.createDiv();
-    textEl.style.cssText = `
-			font-size: 15px; line-height: 1.8; color: #9d9488;
-			font-style: italic; white-space: pre-wrap; word-wrap: break-word;
-		`;
+    const header = this.previewEl.createDiv({ cls: "anky-preview-header" });
+    const dateSpan = header.createSpan({ cls: "anky-preview-date" });
+    dateSpan.textContent = dateStr;
+    const durSpan = header.createSpan();
+    durSpan.textContent = dur;
+    const wordsSpan = header.createSpan();
+    wordsSpan.textContent = `${session.words} words`;
+    const typeSpan = header.createSpan({ cls: session.isAnky ? "anky-map-info-anky-label" : "" });
+    typeSpan.textContent = session.isAnky ? "Anky" : "Session";
+    const textEl = this.previewEl.createDiv({ cls: "anky-preview-text" });
     textEl.textContent = session.text;
   }
   renderMap() {
@@ -867,115 +756,64 @@ var AnkyMapView = class extends import_obsidian.ItemView {
       this.contentEl.empty();
       this.cells = [];
       this.selectedIndex = -1;
-      this.contentEl.style.cssText = `
-			background: #06040f; color: #d4c8b8;
-			font-family: Georgia, serif;
-			height: 100%; overflow: hidden; outline: none;
-			display: flex; flex-direction: column;
-		`;
-      const header = this.contentEl.createDiv();
-      header.style.cssText = `
-			display: flex; align-items: center; justify-content: space-between;
-			padding: 24px 32px 16px 32px; flex-shrink: 0;
-		`;
-      const title = header.createDiv();
-      title.style.cssText = "font-size: 24px; font-weight: 200; color: #e8e2f8;";
-      title.textContent = "anky map";
+      this.contentEl.addClass("anky-map-view");
+      const header = this.contentEl.createDiv({ cls: "anky-map-header" });
+      const title = header.createDiv({ cls: "anky-map-title" });
+      title.textContent = "Anky map";
       this.sessions = yield this.scanSessions();
       const totalCount = this.sessions.length;
       const ankyCount = this.sessions.filter((s) => s.isAnky).length;
-      const summaryEl = header.createDiv();
-      summaryEl.style.cssText = `
-			font-size: 14px; color: rgba(255,255,255,0.4);
-			display: flex; gap: 24px;
-		`;
+      const summaryEl = header.createDiv({ cls: "anky-map-summary" });
       const totalEl = summaryEl.createDiv();
-      totalEl.innerHTML = `<span style="color:#e8e2f8;font-size:20px;font-weight:200;">${totalCount}</span> sessions`;
+      const totalNum = totalEl.createSpan({ cls: "anky-map-summary-total" });
+      totalNum.textContent = String(totalCount);
+      totalEl.appendText(" sessions");
       const ankyEl = summaryEl.createDiv();
-      ankyEl.innerHTML = `<span style="color:#7c3aed;font-size:20px;font-weight:200;">${ankyCount}</span> ankys`;
-      const mainLayout = this.contentEl.createDiv();
-      mainLayout.style.cssText = `
-			display: flex; flex: 1; min-height: 0; overflow: hidden;
-		`;
-      const leftPanel = mainLayout.createDiv();
-      leftPanel.style.cssText = `
-			flex: 0 0 340px; width: 340px; padding: 0 32px 32px 32px; overflow-y: auto;
-			border-right: 1px solid #1a1030;
-		`;
-      const legend = leftPanel.createDiv();
-      legend.style.cssText = `
-			display: flex; gap: 16px; margin-bottom: 16px;
-			font-size: 12px; color: rgba(255,255,255,0.4);
-			align-items: center;
-		`;
-      const addLegendItem = (color, label) => {
-        const item = legend.createDiv();
-        item.style.cssText = "display: flex; align-items: center; gap: 6px;";
-        const dot = item.createDiv();
-        dot.style.cssText = `width: 12px; height: 12px; border-radius: 2px; background: ${color};`;
+      const ankyNum = ankyEl.createSpan({ cls: "anky-map-summary-anky" });
+      ankyNum.textContent = String(ankyCount);
+      ankyEl.appendText(" ankys");
+      const mainLayout = this.contentEl.createDiv({ cls: "anky-map-main" });
+      const leftPanel = mainLayout.createDiv({ cls: "anky-map-left" });
+      const legend = leftPanel.createDiv({ cls: "anky-map-legend" });
+      const addLegendItem = (dotCls, label) => {
+        const item = legend.createDiv({ cls: "anky-legend-item" });
+        item.createDiv({ cls: `anky-legend-dot ${dotCls}` });
         const text = item.createDiv();
         text.textContent = label;
       };
-      addLegendItem("#7c3aed", "anky (8+ min)");
-      addLegendItem("#1a1030", "session (< 8 min)");
-      this.infoEl = leftPanel.createDiv();
-      this.infoEl.style.cssText = `
-			font-size: 13px; color: rgba(255,255,255,0.5);
-			margin-bottom: 16px; min-height: 20px;
-			font-family: Georgia, serif;
-		`;
-      this.infoEl.innerHTML = '<span style="color:rgba(255,255,255,0.2);">arrow keys to navigate, space to open</span>';
+      addLegendItem("anky-legend-dot--anky", "Anky (8+ min)");
+      addLegendItem("anky-legend-dot--session", "Session (< 8 min)");
+      this.infoEl = leftPanel.createDiv({ cls: "anky-map-info" });
+      const hintSpan = this.infoEl.createSpan({ cls: "anky-map-info-hint" });
+      hintSpan.textContent = "Arrow keys to navigate, space to open";
       this.sessions.sort((a, b) => a.date.getTime() - b.date.getTime());
-      const grid = leftPanel.createDiv();
-      grid.style.cssText = `
-			display: flex; flex-wrap: wrap; gap: 6px;
-		`;
+      const grid = leftPanel.createDiv({ cls: "anky-map-grid" });
       for (let i = 0; i < this.sessions.length; i++) {
         const session = this.sessions[i];
-        const cell = grid.createDiv();
-        const bg = session.isAnky ? "#7c3aed" : "#1a1030";
-        const border = session.isAnky ? "1px solid #9b6aed" : "1px solid #2a2050";
-        cell.style.cssText = `
-				width: 32px; height: 32px; border-radius: 4px;
-				background: ${bg}; border: ${border};
-				cursor: pointer; position: relative;
-				transition: transform 0.15s ease, outline 0.15s ease;
-				outline: none;
-			`;
+        const cellCls = session.isAnky ? "anky-map-cell anky-map-cell--anky" : "anky-map-cell anky-map-cell--session";
+        const cell = grid.createDiv({ cls: cellCls });
         const idx = i;
         cell.addEventListener("mouseenter", () => {
           this.selectCell(idx);
         });
         cell.addEventListener("mouseleave", () => {
           if (this.selectedIndex === idx) {
-            cell.style.transform = "scale(1)";
-            cell.style.zIndex = "0";
-            cell.style.outline = "none";
+            cell.removeClass("anky-map-cell--selected");
+            cell.addClass("anky-map-cell--deselected");
           }
         });
-        cell.addEventListener("click", () => __async(this, null, function* () {
-          yield this.app.workspace.openLinkText(session.path, "", false);
-        }));
+        cell.addEventListener("click", () => {
+          void this.app.workspace.openLinkText(session.path, "", false);
+        });
         this.cells.push(cell);
       }
       if (this.sessions.length === 0) {
-        const empty = leftPanel.createDiv();
-        empty.style.cssText = `
-				text-align: center; color: rgba(255,255,255,0.3);
-				font-size: 16px; margin-top: 64px;
-			`;
-        empty.textContent = "no sessions yet. start writing!";
+        const empty = leftPanel.createDiv({ cls: "anky-map-empty" });
+        empty.textContent = "No sessions yet. Start writing!";
       }
-      this.previewEl = mainLayout.createDiv();
-      this.previewEl.style.cssText = `
-			flex: 1; padding: 16px 32px 32px 32px; overflow-y: auto;
-		`;
-      const previewHint = this.previewEl.createDiv();
-      previewHint.style.cssText = `
-			color: rgba(255,255,255,0.15); font-size: 14px;
-			margin-top: 40px; text-align: center;
-		`;
-      previewHint.textContent = "select a session to preview";
+      this.previewEl = mainLayout.createDiv({ cls: "anky-map-right" });
+      const previewHint = this.previewEl.createDiv({ cls: "anky-map-preview-hint" });
+      previewHint.textContent = "Select a session to preview";
     });
   }
   scanSessions() {
@@ -1055,16 +893,15 @@ var AnkyPlugin = class extends import_obsidian.Plugin {
       this.registerView(ANKY_MAP_VIEW_TYPE, (leaf) => new AnkyMapView(leaf, this));
       this.registerExtensions(["anky"], ANKY_VIEW_TYPE);
       this.addCommand({
-        id: "start-anky-session",
+        id: "start-session",
         name: "Start writing session",
-        hotkeys: [{ modifiers: ["Mod", "Shift"], key: "a" }],
         callback: () => {
           new AnkyWritingModal(this.app, this).open();
         }
       });
       this.addCommand({
-        id: "open-anky-map",
-        name: "Open anky map",
+        id: "open-map",
+        name: "Open map",
         callback: () => __async(this, null, function* () {
           const existing = this.app.workspace.getLeavesOfType(ANKY_MAP_VIEW_TYPE);
           if (existing.length > 0) {
