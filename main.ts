@@ -590,17 +590,31 @@ class AnkyInfoModal extends Modal {
 			font-size: 14px; line-height: 1.7; color: rgba(255,255,255,0.5);
 			margin-bottom: 24px;
 		`;
-		desc.textContent = 'to unlock the full anky experience — reflections, insights, and more — download the mobile app.';
+		desc.textContent = 'to unlock the full anky experience — reflections, insights, and more — get the mobile app.';
 
-		const link = contentEl.createEl('a');
-		link.href = 'https://testflight.apple.com/join/WcRYyCm5';
-		link.textContent = 'download on testflight →';
-		link.style.cssText = `
-			display: inline-block; background: #7c3aed; color: #fff;
+		const buttonContainer = contentEl.createDiv();
+		buttonContainer.style.cssText = 'display: flex; gap: 12px; flex-wrap: wrap;';
+
+		const buttonStyle = `
+			display: inline-block; color: #fff;
 			border: none; padding: 12px 24px; font-size: 14px;
 			font-family: Georgia, serif; border-radius: 6px;
 			cursor: pointer; text-decoration: none; letter-spacing: 0.03em;
 		`;
+
+		const copyBtn = buttonContainer.createEl('button');
+		copyBtn.textContent = 'copy testflight link';
+		copyBtn.style.cssText = buttonStyle + 'background: #7c3aed;';
+		copyBtn.addEventListener('click', () => {
+			navigator.clipboard.writeText('https://testflight.apple.com/join/WcRYyCm5');
+			copyBtn.textContent = 'copied!';
+			setTimeout(() => { copyBtn.textContent = 'copy testflight link'; }, 2000);
+		});
+
+		const contactBtn = buttonContainer.createEl('a');
+		contactBtn.href = 'https://x.com/jpfraneto';
+		contactBtn.textContent = 'contact the dev →';
+		contactBtn.style.cssText = buttonStyle + 'background: #1d9bf0;';
 	}
 
 	onClose() {

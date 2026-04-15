@@ -1,6 +1,6 @@
 {
   "name": "anky-obsidian-plugin",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "8-minute forward-only writing. your words, preserved forever.",
   "main": "main.js",
   "scripts": {
