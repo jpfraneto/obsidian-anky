@@ -519,16 +519,16 @@ class AnkyInfoModal extends Modal {
 		title.textContent = 'Anky';
 
 		const desc = contentEl.createDiv({ cls: 'anky-info-desc' });
-		desc.textContent = 'To unlock the full Anky experience \u2014 reflections, insights, and more \u2014 get the mobile app.';
+		desc.textContent = 'Unlock the full experience \u2014 reflections, insights, and more \u2014 on the mobile app.';
 
 		const buttonContainer = contentEl.createDiv({ cls: 'anky-info-buttons' });
 
 		const copyBtn = buttonContainer.createEl('button', { cls: 'anky-btn anky-btn--purple' });
-		copyBtn.textContent = 'Copy TestFlight link';
+		copyBtn.textContent = 'Copy app link';
 		copyBtn.addEventListener('click', () => {
 			void navigator.clipboard.writeText('https://testflight.apple.com/join/WcRYyCm5').then(() => {
 				copyBtn.textContent = 'Copied!';
-				setTimeout(() => { copyBtn.textContent = 'Copy TestFlight link'; }, 2000);
+				setTimeout(() => { copyBtn.textContent = 'Copy app link'; }, 2000);
 			});
 		});
 
@@ -720,12 +720,12 @@ class AnkyFileView extends FileView {
 	private async openMapView() {
 		const existing = this.app.workspace.getLeavesOfType(ANKY_MAP_VIEW_TYPE);
 		if (existing.length > 0) {
-			this.app.workspace.revealLeaf(existing[0]);
+			void this.app.workspace.revealLeaf(existing[0]);
 			return;
 		}
 		const leaf = this.app.workspace.getLeaf(true);
 		await leaf.setViewState({ type: ANKY_MAP_VIEW_TYPE, active: true });
-		this.app.workspace.revealLeaf(leaf);
+		void this.app.workspace.revealLeaf(leaf);
 	}
 }
 
@@ -1053,7 +1053,7 @@ class AnkySettingTab extends PluginSettingTab {
 			.setDesc('Folder within your vault where .anky files are saved.')
 			.addText(text =>
 				text
-					.setPlaceholder('ankys')
+					.setPlaceholder('Folder name')
 					.setValue(this.plugin.settings.sessionFolder)
 					.onChange((value) => {
 						this.plugin.settings.sessionFolder = value || 'ankys';
@@ -1093,12 +1093,12 @@ export default class AnkyPlugin extends Plugin {
 			callback: () => {
 				const existing = this.app.workspace.getLeavesOfType(ANKY_MAP_VIEW_TYPE);
 				if (existing.length > 0) {
-					this.app.workspace.revealLeaf(existing[0]);
+					void this.app.workspace.revealLeaf(existing[0]);
 					return;
 				}
 				const leaf = this.app.workspace.getLeaf(true);
 				void leaf.setViewState({ type: ANKY_MAP_VIEW_TYPE, active: true }).then(() => {
-					this.app.workspace.revealLeaf(leaf);
+					void this.app.workspace.revealLeaf(leaf);
 				});
 			},
 		});

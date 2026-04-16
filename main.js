@@ -434,15 +434,15 @@ var AnkyInfoModal = class extends import_obsidian.Modal {
     const title = contentEl.createDiv({ cls: "anky-info-title" });
     title.textContent = "Anky";
     const desc = contentEl.createDiv({ cls: "anky-info-desc" });
-    desc.textContent = "To unlock the full Anky experience \u2014 reflections, insights, and more \u2014 get the mobile app.";
+    desc.textContent = "Unlock the full experience \u2014 reflections, insights, and more \u2014 on the mobile app.";
     const buttonContainer = contentEl.createDiv({ cls: "anky-info-buttons" });
     const copyBtn = buttonContainer.createEl("button", { cls: "anky-btn anky-btn--purple" });
-    copyBtn.textContent = "Copy TestFlight link";
+    copyBtn.textContent = "Copy app link";
     copyBtn.addEventListener("click", () => {
       void navigator.clipboard.writeText("https://testflight.apple.com/join/WcRYyCm5").then(() => {
         copyBtn.textContent = "Copied!";
         setTimeout(() => {
-          copyBtn.textContent = "Copy TestFlight link";
+          copyBtn.textContent = "Copy app link";
         }, 2e3);
       });
     });
@@ -620,12 +620,12 @@ var AnkyFileView = class extends import_obsidian.FileView {
     return __async(this, null, function* () {
       const existing = this.app.workspace.getLeavesOfType(ANKY_MAP_VIEW_TYPE);
       if (existing.length > 0) {
-        this.app.workspace.revealLeaf(existing[0]);
+        void this.app.workspace.revealLeaf(existing[0]);
         return;
       }
       const leaf = this.app.workspace.getLeaf(true);
       yield leaf.setViewState({ type: ANKY_MAP_VIEW_TYPE, active: true });
-      this.app.workspace.revealLeaf(leaf);
+      void this.app.workspace.revealLeaf(leaf);
     });
   }
 };
@@ -869,7 +869,7 @@ var AnkySettingTab = class extends import_obsidian.PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     new import_obsidian.Setting(containerEl).setName("Session folder").setDesc("Folder within your vault where .anky files are saved.").addText(
-      (text) => text.setPlaceholder("ankys").setValue(this.plugin.settings.sessionFolder).onChange((value) => {
+      (text) => text.setPlaceholder("Folder name").setValue(this.plugin.settings.sessionFolder).onChange((value) => {
         this.plugin.settings.sessionFolder = value || "ankys";
         void this.plugin.saveSettings();
       })
@@ -904,12 +904,12 @@ var AnkyPlugin = class extends import_obsidian.Plugin {
         callback: () => {
           const existing = this.app.workspace.getLeavesOfType(ANKY_MAP_VIEW_TYPE);
           if (existing.length > 0) {
-            this.app.workspace.revealLeaf(existing[0]);
+            void this.app.workspace.revealLeaf(existing[0]);
             return;
           }
           const leaf = this.app.workspace.getLeaf(true);
           void leaf.setViewState({ type: ANKY_MAP_VIEW_TYPE, active: true }).then(() => {
-            this.app.workspace.revealLeaf(leaf);
+            void this.app.workspace.revealLeaf(leaf);
           });
         }
       });
