@@ -687,10 +687,11 @@ class AnkyFileView extends FileView {
 			if (!file) return;
 			const modal = new AnkyConfirmModal(this.app, 'Delete this session?');
 			modal.open();
-			void modal.waitForResult().then(async (confirmed) => {
+			void modal.waitForResult().then((confirmed) => {
 				if (!confirmed) return;
-				await this.app.fileManager.trashFile(file);
-				window.history.back();
+				void this.app.fileManager.trashFile(file).then(() => {
+					window.history.back();
+				});
 			});
 		});
 
@@ -774,7 +775,7 @@ class AnkyMapView extends ItemView {
 		this.contentEl.focus();
 	}
 
-	async onClose() {
+	onClose() {
 		if (this.keyHandler) {
 			this.contentEl.removeEventListener('keydown', this.keyHandler);
 		}
@@ -855,7 +856,7 @@ class AnkyMapView extends ItemView {
 		const typeLabel = this.infoEl.createSpan({ cls: session.isAnky ? 'anky-map-info-anky-label' : 'anky-map-info-session-label' });
 		typeLabel.textContent = session.isAnky ? 'Anky' : 'Session';
 
-		this.infoEl.appendText(` \u00B7 ${dateStr} \u00B7 ${dur} \u00B7 ${session.words} words  `);
+		this.infoEl.appendText(` \u00B7 ${dateStr} \u00B7 ${dur} \u00B7 ${session.words} Words  `);
 
 		const openHint = this.infoEl.createSpan({ cls: 'anky-map-info-open-hint' });
 		openHint.textContent = 'Space to open';
@@ -879,7 +880,7 @@ class AnkyMapView extends ItemView {
 		durSpan.textContent = dur;
 
 		const wordsSpan = header.createSpan();
-		wordsSpan.textContent = `${session.words} words`;
+		wordsSpan.textContent = `${session.words} Words`;
 
 		const typeSpan = header.createSpan({ cls: session.isAnky ? 'anky-map-info-anky-label' : '' });
 		typeSpan.textContent = session.isAnky ? 'Anky' : 'Session';
@@ -910,12 +911,12 @@ class AnkyMapView extends ItemView {
 		const totalEl = summaryEl.createDiv();
 		const totalNum = totalEl.createSpan({ cls: 'anky-map-summary-total' });
 		totalNum.textContent = String(totalCount);
-		totalEl.appendText(' sessions');
+		totalEl.appendText(' Sessions');
 
 		const ankyEl = summaryEl.createDiv();
 		const ankyNum = ankyEl.createSpan({ cls: 'anky-map-summary-anky' });
 		ankyNum.textContent = String(ankyCount);
-		ankyEl.appendText(' ankys');
+		ankyEl.appendText(' Ankys');
 
 		// Main layout: grid left, preview right
 		const mainLayout = this.contentEl.createDiv({ cls: 'anky-map-main' });
@@ -1054,9 +1055,9 @@ class AnkySettingTab extends PluginSettingTab {
 				text
 					.setPlaceholder('ankys')
 					.setValue(this.plugin.settings.sessionFolder)
-					.onChange(async (value) => {
+					.onChange((value) => {
 						this.plugin.settings.sessionFolder = value || 'ankys';
-						await this.plugin.saveSettings();
+						void this.plugin.saveSettings();
 					})
 			);
 	}
@@ -1089,15 +1090,16 @@ export default class AnkyPlugin extends Plugin {
 		this.addCommand({
 			id: 'open-map',
 			name: 'Open map',
-			callback: async () => {
+			callback: () => {
 				const existing = this.app.workspace.getLeavesOfType(ANKY_MAP_VIEW_TYPE);
 				if (existing.length > 0) {
 					this.app.workspace.revealLeaf(existing[0]);
 					return;
 				}
 				const leaf = this.app.workspace.getLeaf(true);
-				await leaf.setViewState({ type: ANKY_MAP_VIEW_TYPE, active: true });
-				this.app.workspace.revealLeaf(leaf);
+				void leaf.setViewState({ type: ANKY_MAP_VIEW_TYPE, active: true }).then(() => {
+					this.app.workspace.revealLeaf(leaf);
+				});
 			},
 		});
 

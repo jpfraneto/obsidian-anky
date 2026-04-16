@@ -590,12 +590,13 @@ var AnkyFileView = class extends import_obsidian.FileView {
         return;
       const modal = new AnkyConfirmModal(this.app, "Delete this session?");
       modal.open();
-      void modal.waitForResult().then((confirmed) => __async(this, null, function* () {
+      void modal.waitForResult().then((confirmed) => {
         if (!confirmed)
           return;
-        yield this.app.fileManager.trashFile(file);
-        window.history.back();
-      }));
+        void this.app.fileManager.trashFile(file).then(() => {
+          window.history.back();
+        });
+      });
     });
     const addStat = (value, label) => {
       const s = statsRow.createDiv({ cls: "anky-stat" });
@@ -660,12 +661,10 @@ var AnkyMapView = class extends import_obsidian.ItemView {
     });
   }
   onClose() {
-    return __async(this, null, function* () {
-      if (this.keyHandler) {
-        this.contentEl.removeEventListener("keydown", this.keyHandler);
-      }
-      this.contentEl.empty();
-    });
+    if (this.keyHandler) {
+      this.contentEl.removeEventListener("keydown", this.keyHandler);
+    }
+    this.contentEl.empty();
   }
   handleKey(e) {
     var _a, _b, _c;
@@ -727,7 +726,7 @@ var AnkyMapView = class extends import_obsidian.ItemView {
     const dur = `${durationMin}:${durationSec.toString().padStart(2, "0")}`;
     const typeLabel = this.infoEl.createSpan({ cls: session.isAnky ? "anky-map-info-anky-label" : "anky-map-info-session-label" });
     typeLabel.textContent = session.isAnky ? "Anky" : "Session";
-    this.infoEl.appendText(` \xB7 ${dateStr} \xB7 ${dur} \xB7 ${session.words} words  `);
+    this.infoEl.appendText(` \xB7 ${dateStr} \xB7 ${dur} \xB7 ${session.words} Words  `);
     const openHint = this.infoEl.createSpan({ cls: "anky-map-info-open-hint" });
     openHint.textContent = "Space to open";
   }
@@ -745,7 +744,7 @@ var AnkyMapView = class extends import_obsidian.ItemView {
     const durSpan = header.createSpan();
     durSpan.textContent = dur;
     const wordsSpan = header.createSpan();
-    wordsSpan.textContent = `${session.words} words`;
+    wordsSpan.textContent = `${session.words} Words`;
     const typeSpan = header.createSpan({ cls: session.isAnky ? "anky-map-info-anky-label" : "" });
     typeSpan.textContent = session.isAnky ? "Anky" : "Session";
     const textEl = this.previewEl.createDiv({ cls: "anky-preview-text" });
@@ -767,11 +766,11 @@ var AnkyMapView = class extends import_obsidian.ItemView {
       const totalEl = summaryEl.createDiv();
       const totalNum = totalEl.createSpan({ cls: "anky-map-summary-total" });
       totalNum.textContent = String(totalCount);
-      totalEl.appendText(" sessions");
+      totalEl.appendText(" Sessions");
       const ankyEl = summaryEl.createDiv();
       const ankyNum = ankyEl.createSpan({ cls: "anky-map-summary-anky" });
       ankyNum.textContent = String(ankyCount);
-      ankyEl.appendText(" ankys");
+      ankyEl.appendText(" Ankys");
       const mainLayout = this.contentEl.createDiv({ cls: "anky-map-main" });
       const leftPanel = mainLayout.createDiv({ cls: "anky-map-left" });
       const legend = leftPanel.createDiv({ cls: "anky-map-legend" });
@@ -870,10 +869,10 @@ var AnkySettingTab = class extends import_obsidian.PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
     new import_obsidian.Setting(containerEl).setName("Session folder").setDesc("Folder within your vault where .anky files are saved.").addText(
-      (text) => text.setPlaceholder("ankys").setValue(this.plugin.settings.sessionFolder).onChange((value) => __async(this, null, function* () {
+      (text) => text.setPlaceholder("ankys").setValue(this.plugin.settings.sessionFolder).onChange((value) => {
         this.plugin.settings.sessionFolder = value || "ankys";
-        yield this.plugin.saveSettings();
-      }))
+        void this.plugin.saveSettings();
+      })
     );
   }
 };
@@ -902,16 +901,17 @@ var AnkyPlugin = class extends import_obsidian.Plugin {
       this.addCommand({
         id: "open-map",
         name: "Open map",
-        callback: () => __async(this, null, function* () {
+        callback: () => {
           const existing = this.app.workspace.getLeavesOfType(ANKY_MAP_VIEW_TYPE);
           if (existing.length > 0) {
             this.app.workspace.revealLeaf(existing[0]);
             return;
           }
           const leaf = this.app.workspace.getLeaf(true);
-          yield leaf.setViewState({ type: ANKY_MAP_VIEW_TYPE, active: true });
-          this.app.workspace.revealLeaf(leaf);
-        })
+          void leaf.setViewState({ type: ANKY_MAP_VIEW_TYPE, active: true }).then(() => {
+            this.app.workspace.revealLeaf(leaf);
+          });
+        }
       });
       this.addSettingTab(new AnkySettingTab(this.app, this));
     });
